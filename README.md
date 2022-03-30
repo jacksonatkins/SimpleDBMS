@@ -126,7 +126,7 @@ Compressing objects: 100% (2/2), done.
 Writing objects: 100% (3/3), 286 bytes | 0 bytes/s, done.
 Total 3 (delta 1), reused 0 (delta 0)
 To git@gitlab.cs.washington.edu:cse444-22sp/simple-db-username.git
-   cb5be61..9bbce8d  main -> main
+   cb5be61..9bbce8d  master -> master
 ```
 
 We pushed a blank file to our origin remote, which isn't very interesting. Let's clean up after ourselves:
@@ -147,14 +147,14 @@ If you don't know Git that well, this probably seemed very arcane. Just keep usi
 If we release additional details or bug fixes for this lab, we'll push them to the repository that you just added as an `upstream` remote. You'll need to `pull` and `merge` them into your own repository. (You'll also do this for subsequent labs!) You can do both of these things with the following command:
 
 ```sh
-$ git pull upstream main
+$ git pull upstream master 
 remote: Counting objects: 3, done.
 remote: Compressing objects: 100% (3/3), done.
 remote: Total 3 (delta 2), reused 0 (delta 0)
 Unpacking objects: 100% (3/3), done.
 From gitlab.cs.washington.edu:cse444-22sp/simple-db
- * branch            main     -> FETCH_HEAD
-   7f81148..b0c4a3e  main     -> upstream/main
+ * branch            master     -> FETCH_HEAD
+   7f81148..b0c4a3e  master     -> upstream/master
 Merge made by the 'recursive' strategy.
  README.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
@@ -642,7 +642,7 @@ Compressing objects: 100% (4/4), done.
 Writing objects: 100% (6/6), 448 bytes | 0 bytes/s, done.
 Total 6 (delta 3), reused 0 (delta 0)
 To git@gitlab.com:cse444-22sp/hw-answers-pirateninja.git
-   ae31bce..b155ba0  main -> main
+   ae31bce..b155ba0  master -> master
 Counting objects: 1, done.
 Writing objects: 100% (1/1), 152 bytes | 0 bytes/s, done.
 Total 1 (delta 0), reused 0 (delta 0)
