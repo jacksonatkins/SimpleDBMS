@@ -12,6 +12,10 @@ import java.util.Iterator;
 public class Tuple implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    private TupleDesc tupleDesc;
+    private RecordId rid;
+    private int numFields;
+    private Field[] fields;
 
     /**
      * Create a new tuple with the specified schema (type).
@@ -21,15 +25,17 @@ public class Tuple implements Serializable {
      *            instance with at least one field.
      */
     public Tuple(TupleDesc td) {
-        // some code goes here
+        this.tupleDesc = td;
+        this.rid = null;
+        this.numFields = td.numFields();
+        this.fields = new Field[this.numFields];
     }
 
     /**
      * @return The TupleDesc representing the schema of this tuple.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return this.tupleDesc;
     }
 
     /**
@@ -37,8 +43,7 @@ public class Tuple implements Serializable {
      *         be null.
      */
     public RecordId getRecordId() {
-        // some code goes here
-        return null;
+        return this.rid;
     }
 
     /**
@@ -48,7 +53,7 @@ public class Tuple implements Serializable {
      *            the new RecordId for this tuple.
      */
     public void setRecordId(RecordId rid) {
-        // some code goes here
+        this.rid = rid;
     }
 
     /**
@@ -60,7 +65,9 @@ public class Tuple implements Serializable {
      *            new value for the field.
      */
     public void setField(int i, Field f) {
-        // some code goes here
+        assert i < this.numFields;
+
+        this.fields[i] = f;
     }
 
     /**
@@ -70,8 +77,9 @@ public class Tuple implements Serializable {
      *            field index to return. Must be a valid index.
      */
     public Field getField(int i) {
-        // some code goes here
-        return null;
+        assert i < this.numFields;
+
+        return this.fields[i];
     }
 
     /**
@@ -83,25 +91,43 @@ public class Tuple implements Serializable {
      * where \t is any whitespace (except a newline)
      */
     public String toString() {
-        // some code goes here
-        throw new UnsupportedOperationException("Implement this");
+        String result = this.fields[0].toString();
+
+        for (int i = 1; i < this.numFields; i++) {
+            result += "\t" + this.fields[i].toString();
+        }
+        return result;
     }
 
     /**
      * @return
      *        An iterator which iterates over all the fields of this tuple
      * */
-    public Iterator<Field> fields()
-    {
-        // some code goes here
-        return null;
+    public Iterator<Field> fields() {
+        return new Iterator<>() {
+
+            private int idx = 0;
+
+            @Override
+            public boolean hasNext() {
+                if (idx < numFields) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+
+            @Override
+            public Field next() {
+                return fields[idx++];
+            }
+        };
     }
 
     /**
      * reset the TupleDesc of this tuple (only affecting the TupleDesc)
      * */
-    public void resetTupleDesc(TupleDesc td)
-    {
-        // some code goes here
+    public void resetTupleDesc(TupleDesc td) {
+        this.tupleDesc = td;
     }
 }
