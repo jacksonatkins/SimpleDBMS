@@ -188,8 +188,8 @@ You should see output similar to:
 test:
     [junit] Running simpledb.CatalogTest
     [junit] Testsuite: simpledb.CatalogTest
-    [junit] Tests run: 2, Failures: 0, Errors: 2, Time elapsed: 0.037 sec
-    [junit] Tests run: 2, Failures: 0, Errors: 2, Time elapsed: 0.037 sec
+    [junit] Tests run: 5, Failures: 4, Errors: 1, Skipped: 0, Time elapsed: 0.031 sec
+    [junit] Tests run: 5, Failures: 4, Errors: 1, Skipped: 0, Time elapsed: 0.031 sec
 
 # ... stack traces and error reports ...
 ```
