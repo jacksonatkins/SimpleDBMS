@@ -229,10 +229,10 @@ public class TupleDesc implements Serializable {
     public boolean equals(Object o) {
         if (o instanceof TupleDesc) {
             TupleDesc td = (TupleDesc) o;
-            if (td.numFields() != this.numFields()) {
+            if (td.numFields() != this.numFields) {
                 return false;
             } else {
-                for (int i = 0; i < this.numFields(); i++) {
+                for (int i = 0; i < this.numFields; i++) {
                     if (td.getFieldType(i) != this.getFieldType(i)) {
                         return false;
                     }

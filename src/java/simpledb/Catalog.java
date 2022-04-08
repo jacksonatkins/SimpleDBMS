@@ -18,12 +18,46 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Catalog {
 
+    private Map<Integer, Table> idToTable;
+    private Map<String, Integer> nameToID;
+
+    /**
+     * A help class to facilitate organizing the information
+     * related to a table.
+     */
+    public static class Table {
+
+        public DbFile file;
+        public String name;
+        public String pkeyField;
+
+        public Table(DbFile file, String name, String pkeyField) {
+            this.file = file;
+            this.name = name;
+            this.pkeyField = pkeyField;
+        }
+
+        public DbFile getFile() {
+            return this.file;
+        }
+
+        public String getName() {
+            return this.name;
+        }
+
+        public String getPkeyField() {
+            return this.pkeyField;
+        }
+
+    }
+
     /**
      * Constructor.
      * Creates a new, empty catalog.
      */
     public Catalog() {
-        // some code goes here
+        this.idToTable = new HashMap<>();
+        this.nameToID = new HashMap<>();
     }
 
     /**
@@ -36,7 +70,9 @@ public class Catalog {
      * @param pkeyField the name of the primary key field
      */
     public void addTable(DbFile file, String name, String pkeyField) {
-        // some code goes here
+        assert name != null;
+        this.idToTable.put(file.getId(), new Table(file, name, pkeyField));
+        this.nameToID.put(name, file.getId());
     }
 
     public void addTable(DbFile file, String name) {
@@ -59,8 +95,12 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public int getTableId(String name) throws NoSuchElementException {
-        // some code goes here
-        return 0;
+        for (Table t : this.idToTable.values()) {
+            if (t.getName().equals(name)) {
+                return t.getFile().getId();
+            }
+        }
+        throw new NoSuchElementException("Cannot find table with specified name.");
     }
 
     /**
@@ -70,8 +110,12 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-        // some code goes here
-        return null;
+        for (Table t : this.idToTable.values()) {
+            if (t.getFile().getId() == tableid) {
+                return t.getFile().getTupleDesc();
+            }
+        }
+        throw new NoSuchElementException("Cannot find table with specified ID.");
     }
 
     /**
@@ -81,28 +125,40 @@ public class Catalog {
      *     function passed to addTable
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
-        // some code goes here
-        return null;
+        for (Table t : this.idToTable.values()) {
+            if (t.getFile().getId() == tableid) {
+                return t.getFile();
+            }
+        }
+        throw new NoSuchElementException("Cannot find table with specified ID.");
     }
 
     public String getPrimaryKey(int tableid) {
-        // some code goes here
-        return null;
+        for (Table t : this.idToTable.values()) {
+            if (t.getFile().getId() == tableid) {
+                return t.getPkeyField();
+            }
+        }
+        throw new NoSuchElementException("Cannot find table with specified ID.");
     }
 
     public Iterator<Integer> tableIdIterator() {
-        // some code goes here
-        return null;
+        return this.idToTable.keySet().iterator();
     }
 
     public String getTableName(int id) {
-        // some code goes here
-        return null;
+        for (Table t : this.idToTable.values()) {
+            if (t.getFile().getId() == id) {
+                return t.getName();
+            }
+        }
+        throw new NoSuchElementException("Cannot find table with specified ID.");
     }
     
     /** Delete all tables from the catalog */
     public void clear() {
-        // some code goes here
+        this.idToTable.clear();
+        this.nameToID.clear();
     }
     
     /**
