@@ -72,7 +72,12 @@ public class Catalog {
     public void addTable(DbFile file, String name, String pkeyField) {
         assert name != null;
         this.idToTable.put(file.getId(), new Table(file, name, pkeyField));
-        this.nameToID.put(name, file.getId());
+        if (this.nameToID.containsKey(name)) {
+            int old = this.nameToID.put(name, file.getId());
+            this.idToTable.remove(old);
+        } else {
+            this.nameToID.put(name, file.getId());
+        }
     }
 
     public void addTable(DbFile file, String name) {
@@ -95,10 +100,8 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public int getTableId(String name) throws NoSuchElementException {
-        for (Table t : this.idToTable.values()) {
-            if (t.getName().equals(name)) {
-                return t.getFile().getId();
-            }
+        if (this.nameToID.containsKey(name)) {
+            return this.nameToID.get(name);
         }
         throw new NoSuchElementException("Cannot find table with specified name.");
     }
@@ -110,10 +113,8 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-        for (Table t : this.idToTable.values()) {
-            if (t.getFile().getId() == tableid) {
-                return t.getFile().getTupleDesc();
-            }
+        if (this.idToTable.containsKey(tableid)) {
+            return this.idToTable.get(tableid).getFile().getTupleDesc();
         }
         throw new NoSuchElementException("Cannot find table with specified ID.");
     }
@@ -125,19 +126,15 @@ public class Catalog {
      *     function passed to addTable
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
-        for (Table t : this.idToTable.values()) {
-            if (t.getFile().getId() == tableid) {
-                return t.getFile();
-            }
+        if (this.idToTable.containsKey(tableid)) {
+            return this.idToTable.get(tableid).getFile();
         }
         throw new NoSuchElementException("Cannot find table with specified ID.");
     }
 
     public String getPrimaryKey(int tableid) {
-        for (Table t : this.idToTable.values()) {
-            if (t.getFile().getId() == tableid) {
-                return t.getPkeyField();
-            }
+        if (this.idToTable.containsKey(tableid)) {
+            return this.idToTable.get(tableid).getPkeyField();
         }
         throw new NoSuchElementException("Cannot find table with specified ID.");
     }
@@ -147,10 +144,8 @@ public class Catalog {
     }
 
     public String getTableName(int id) {
-        for (Table t : this.idToTable.values()) {
-            if (t.getFile().getId() == id) {
-                return t.getName();
-            }
+        if (this.idToTable.containsKey(id)) {
+            return this.idToTable.get(id).getName();
         }
         throw new NoSuchElementException("Cannot find table with specified ID.");
     }

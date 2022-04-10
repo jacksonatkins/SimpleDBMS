@@ -1,0 +1,34 @@
+Lab 1 was all about building the required groundwork in order to finally implement the first operator in SimpleDB, SeqScan.
+
+In SimpleDB, a single table is stored on a single file, each of which has an associated HeapFile. A HeapFile contains
+multiple Pages of data, all relating to one unique table. Each of these pages has an associated HeapPageId in order
+to make sure that files are correctly called when they are needed. In essence, each HeapPage contains a defined number
+of Tuples, as well as a header in order to see what "slots" on the page are filled with data. Each of these Tuples
+has an associated TupleDesc, which defines the size of the tuple as well as what Fields it has, and what data it can
+store (i.e. the schema of the table the Tuple is a part of). Furthermore, a Tuple on a specific Page of a specific Table
+is defined by a unique RecordId, similar to the HeapPageId defined above. In order to allow for faster access, pages can
+be stored in the BufferPool for later use. As the BufferPool acts as a cache for pages, it must read the pages from disk
+through HeapFile if a requested page is not already stored in the cache. Lastly is the Catalog, which ties all the above
+components together. The Catalog stores all Tables and Files, making sure that they can be efficiently accessed and that
+they maintain the requirements defined by SimpleDB. Lastly is the actual goal of lab 1, the SeqScan operator. When this
+operator is called, it is passed a table id. It then can use the iterator from the file associated with the table in order
+to start returning data. Whenever SeqScan needs the next tuple, it can simply use the next tuple returned by HeapFile's
+iterator. The HeapFile iterator in turn tracks the current page it is looking at, and uses the HeapPage iterator in order
+to return the next tuple. When the page eventually has no more tuples to return, the HeapFile looks to the next page,
+continuing the same pattern until all data from the table has been returned to SeqScan.
+
+There were not too many extreme design decisions that I made. I would say the two choices that have the most impact
+are the way that hashCode() is implemented in HeapPageId and the way that tables, ids, and names are stored in
+Catalog. I chose to simply add the tableId with the pageNo in HeapPageId to make the hash code. I chose to this
+implementation as using concatenation provided too many issues in my case. Next, I created a nested class within Catalog
+to represent Tables, allowing me to (a) have an easy way to contain all necessary data and (b) store tables, names, and
+ids while only using two HashMaps. This design choice led to the if/else branch in the "addTable" method, as we must remove
+any tables that should not be there when adding a new name.
+
+A unit test that I would definitely add to this lab would be better iterator tests in HeapFileReadTest. While there were
+tests in SeqScan test, I was stuck for a long time writing the iterator in HeapFile, as I had no way (yet) to test the
+implementation of my iterator on more complex files/schema.
+
+The only thing I did that I would consider to be "changing" the API was altering the Java version defined in the provided
+build.xml file, as my program would not work otherwise.As of now, there should not be any incomplete elements anywhere in
+the code (except for where code was not required for this lab).
