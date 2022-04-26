@@ -41,8 +41,8 @@ public class Filter extends Operator {
     }
 
     public void close() {
-        this.child.close();
         super.close();
+        this.child.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
@@ -60,12 +60,10 @@ public class Filter extends Operator {
      */
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
-        if (this.child.hasNext()) {
+        while (this.child.hasNext()) {
             Tuple n = this.child.next();
             if (p.filter(n)) {
                 return n;
-            } else {
-                return this.fetchNext();
             }
         }
         return null;
@@ -73,13 +71,12 @@ public class Filter extends Operator {
 
     @Override
     public OpIterator[] getChildren() {
-        // some code goes here
-        return null;
+        return new OpIterator[]{this.child};
     }
 
     @Override
     public void setChildren(OpIterator[] children) {
-        // some code goes here
+        this.child = children[0];
     }
 
 }

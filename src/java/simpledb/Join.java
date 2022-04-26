@@ -130,8 +130,8 @@ public class Join extends Operator {
 
     @Override
     public void setChildren(OpIterator[] children) {
-        children[0] = this.child1;
-        children[1] = this.child2;
+        this.child1 = children[0];
+        this.child2 = children[1];
     }
 
 }

@@ -505,6 +505,7 @@ public class Parser {
         try {
             ZqlParser p = new ZqlParser(is);
             ZStatement s = p.readStatement();
+            System.out.println(s);
 
             Query query = null;
             if (s instanceof ZTransactStmt)

@@ -72,8 +72,9 @@ public class BufferPool {
         throws TransactionAbortedException, DbException {
         if (this.pages.containsKey(pid)) {
             return this.pages.get(pid);
-        } else if (this.pages.size() >= this.numPages){
-            throw new DbException("Not implemented yet");
+        } else if (this.pages.size() > this.numPages){
+            evictPage();
+            return getPage(tid, pid, perm);
         } else {
             Page p = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
             this.pages.put(pid, p);
@@ -142,8 +143,15 @@ public class BufferPool {
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+        HeapFile f = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+        ArrayList<Page> dirty = f.insertTuple(tid, t);
+        for (Page p : dirty) {
+            p.markDirty(true, tid);
+            if (this.pages.size() > this.numPages) {
+                evictPage();
+            }
+            this.pages.put(p.getId(), p);
+        }
     }
 
     /**
@@ -159,10 +167,15 @@ public class BufferPool {
      * @param tid the transaction deleting the tuple.
      * @param t the tuple to delete
      */
-    public  void deleteTuple(TransactionId tid, Tuple t)
+    public void deleteTuple(TransactionId tid, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+        int tableId = t.getRecordId().getPageId().getTableId();
+        HeapFile f = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+        ArrayList<Page> dirty = f.deleteTuple(tid, t);
+        for (Page p : dirty) {
+            p.markDirty(true, tid);
+            this.pages.put(p.getId(), p);
+        }
     }
 
     /**
@@ -171,9 +184,9 @@ public class BufferPool {
      *     break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-        // some code goes here
-        // not necessary for lab1
-
+        for (PageId pid : this.pages.keySet()) {
+            this.flushPage(pid);
+        }
     }
 
     /** Remove the specific page id from the buffer pool.
@@ -193,14 +206,18 @@ public class BufferPool {
      * Flushes a certain page to disk
      * @param pid an ID indicating the page to flush
      */
-    private synchronized  void flushPage(PageId pid) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+    private synchronized void flushPage(PageId pid) throws IOException {
+        Page p = this.pages.get(pid);
+        if (p.isDirty() != null) {
+            HeapFile hp = (HeapFile) Database.getCatalog().getDatabaseFile(pid.getTableId());
+            hp.writePage(p);
+            p.markDirty(false, null);
+        }
     }
 
     /** Write all pages of the specified transaction to disk.
      */
-    public synchronized  void flushPages(TransactionId tid) throws IOException {
+    public synchronized void flushPages(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
     }
@@ -209,9 +226,16 @@ public class BufferPool {
      * Discards a page from the buffer pool.
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
-    private synchronized  void evictPage() throws DbException {
-        // some code goes here
-        // not necessary for lab1
+    private synchronized void evictPage() throws DbException {
+        List<PageId> list = new ArrayList<>(this.pages.keySet());
+        Collections.shuffle(list);
+        PageId deletion = list.get(0);
+        try {
+            flushPage(deletion);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        this.pages.remove(deletion);
     }
 
 }
