@@ -48,7 +48,6 @@ public class StringAggregator implements Aggregator {
         } else {
             if (this.groupBy.containsKey(tup.getField(this.gbfield))) {
                 int current = this.groupBy.get(tup.getField(this.gbfield));
-                //current += ((IntField) tup.getField(this.afield)).getValue();
                 this.groupBy.put(tup.getField(this.gbfield), current + 1);
             } else {
                 this.groupBy.put(tup.getField(this.gbfield), 1);

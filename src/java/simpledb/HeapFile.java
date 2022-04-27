@@ -182,7 +182,7 @@ public class HeapFile implements DbFile {
 
         @Override
         public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
-           if (this.currIterator.hasNext()) {
+           if (this.hasNext()) {
                return this.currIterator.next();
            } else {
                throw new NoSuchElementException("No more tuples could be found");

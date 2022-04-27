@@ -1,0 +1,51 @@
+1. Query 1 took 0.62 seconds, Query 2 took 1.49 seconds, and Query 3 took 2.14 seconds.
+
+2. To start, I began by implementing the Filter and Join operators, both very important operators for any query to the
+database. The Filter operator works by simply taking in tuples from the child operator, and returning whenever the tuple
+passes the filter defined in the constructor. The filter operator uses the Predicate class in order to compare a field
+from a tuple to a given field based on predefined operators. While the implementation was very simple, it is quite
+possibly the most important operator in SimpleDB. The Join operator also uses a similar Predicate class in order to
+compare two different fields from two different tuples. This allows the Join operator to actually perform what it is
+supposed to do. Within the Join operator, we preprocess the first (left) relation by hashing on the join field of the
+relation and adding all tuples with the same value to a hash map. I did this so that multiple tuples can join at a time
+without having to search the entire relation again. I only do this when the predicate join’s operator is =. This is
+because when there is an equality join, I use the preprocessed information to join the two relations using a hash join,
+allowing for easy and efficient joins. For all other types of joins, I use a simple nested loop join combined with the
+previously defined join predicate. I then return the necessary information by merging the two tuples together as defined
+in the lab specification. Next came adding the ability to take aggregates. The StringAggregator allows for aggregates
+over string field types. Any aggregates besides “count” return an error, for obvious reasons. The most important function
+of the class is mergeTupleIntoGroup, which actually performs the aggregation. If there is no defined group by field, we
+simply count the number of tuples that are passed through this operator. If there is a defined group by field, we use a
+map in order to store the counts for each unique group by field. The iterator finally goes through the map and returns
+the required values accordingly. IntegerAggregator is implemented in a similar way, although other aggregations besides
+count are now allowed, which can lead to some complications. These aggregators can be accessed through the Aggregate
+class, which contains all of the necessary pieces to determine which operator to call, and how to group the output
+correctly. It does so by simply taking either IntegerAggregator or StringAggregator and using their defined Iterator
+methods to iterate through the aggregated output. Lastly is all methods related to the Insert and Delete operators.
+The first step was to implement page eviction in BufferPool, the implementation of which is defined below. The actual
+Insert/Delete classes work by simply calling the appropriate methods from the BufferPool, acting mostly as containers
+for setting up the required information. The BufferPool also works in a similar way by simply calling the necessary
+methods from the corresponding HeapFile (as well as marking pages dirty, etc.). The HeapFile jumps straight to the
+HeapPage when deleting a tuple, or looks through pages for open spots when inserting a tuple. If none are found, it of
+course creates a new page and adds the tuple to it. The majority of the work is done in HeapPage, which simply uses
+the header bits to keep track of which tuples are being inserted and deleted. With all of the above implementation,
+we can now process basic SQL-style queries in SimpleDB!
+
+3. My eviction policy is random, and it uses the shuffle() method found in Collections to randomly choose a page to
+evict. I chose to do this method as I think the current scope of SimpleDB would not benefit that much from using a more
+complex eviction policy like least recently used. I may change this in a future lab. Furthermore, I chose to use a hash
+join for the = operator in Join.java. I chose to do this as I was having very slow runtimes on the example queries at
+the end of the lab, and figured I could benefit from a more efficient algorithm. The benefit of the algorithm is that it
+definitely runs much faster than the nested loop join, even when run on a large data set. The only negatives to this
+algorithm is that (1) one of the relations must be pre-processed when opening the join operator and (2) I rely on the
+child operator to efficiently pass us the next Tuple, which is certainly not guaranteed.
+
+4. A unit test that would be helpful in my opinion would be one for the Delete operator. I ended up spending multiple
+hours tracking down a bug that I thought originated in this class, but was actually an issue that stemmed from my
+HeapPage iterator. However, I spent a lot of time thinking that this bug came from Delete, as it only showed up in the
+Delete system test. I think that a Delete unit test would have saved me time by showing that the error must have been
+coming from another class.
+
+5. There were no changes made to the API.
+
+6. There are no missing pieces of the code.

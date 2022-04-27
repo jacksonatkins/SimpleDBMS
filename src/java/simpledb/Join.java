@@ -12,6 +12,9 @@ public class Join extends Operator {
     private JoinPredicate p;
     private OpIterator child1, child2;
     private Tuple one;
+
+    private Map<Field, ArrayList<Tuple>> hashJoin;
+    private LinkedList<Tuple> buffer;
     /**
      * Constructor. Accepts two children to join and the predicate to join them
      * on
@@ -63,6 +66,19 @@ public class Join extends Operator {
             TransactionAbortedException {
         this.child1.open();
         this.child2.open();
+
+        if (this.p.getOperator().equals(Predicate.Op.EQUALS)) {
+            this.buffer = new LinkedList<>();
+            this.hashJoin = new HashMap<>();
+            while (this.child1.hasNext()) {
+                Tuple t = this.child1.next();
+                Field j = t.getField(this.p.getField1());
+                if (!this.hashJoin.containsKey(j)) {
+                    this.hashJoin.put(j, new ArrayList<>());
+                }
+                this.hashJoin.get(j).add(t);
+            }
+        }
         super.open();
     }
 
@@ -96,18 +112,35 @@ public class Join extends Operator {
      * @see JoinPredicate#filter
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        while (this.child1.hasNext() || this.one != null) {
-            if (this.child1.hasNext() && this.one == null) {
-                this.one = this.child1.next();
+        if (!this.p.getOperator().equals(Predicate.Op.EQUALS)) {
+            while (this.child1.hasNext() || this.one != null) {
+                if (this.child1.hasNext() && this.one == null) {
+                    this.one = this.child1.next();
+                }
+                while (this.child2.hasNext()) {
+                    Tuple two = this.child2.next();
+                    if (this.p.filter(this.one, two)) {
+                        return merge(this.one, two);
+                    }
+                }
+                this.one = null;
+                this.child2.rewind();
             }
-            while (this.child2.hasNext()) {
-                Tuple two = this.child2.next();
-                if (this.p.filter(this.one, two)) {
-                    return merge(this.one, two);
+        } else {
+            if (!this.buffer.isEmpty()) {
+                return this.buffer.poll();
+            } else {
+                while (this.child2.hasNext()) {
+                    Tuple t2 = this.child2.next();
+                    Field f2 = t2.getField(this.p.getField2());
+                    if (this.hashJoin.containsKey(f2)) {
+                        for (Tuple t1 : this.hashJoin.get(f2)) {
+                            this.buffer.add(merge(t1, t2));
+                        }
+                        return this.buffer.poll();
+                    }
                 }
             }
-            this.one = null;
-            this.child2.rewind();
         }
         return null;
     }
