@@ -1,4 +1,4 @@
-1. Query 1 took 0.62 seconds, Query 2 took 1.49 seconds, and Query 3 took 2.14 seconds.
+1. Query 1 took 1.49 seconds, Query 2 took 3.02 seconds, and Query 3 took 3.32 seconds.
 
 2. To start, I began by implementing the Filter and Join operators, both very important operators for any query to the
 database. The Filter operator works by simply taking in tuples from the child operator, and returning whenever the tuple
