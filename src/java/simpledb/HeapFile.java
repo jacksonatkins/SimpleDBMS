@@ -100,11 +100,14 @@ public class HeapFile implements DbFile {
         ArrayList<Page> list = new ArrayList<>();
         for (int pno = 0; pno < this.numPages(); pno++) {
             PageId pid = new HeapPageId(this.getId(), pno);
-            HeapPage hp = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
+            HeapPage hp = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_ONLY);
             if (hp.getNumEmptySlots() > 0) {
+                hp = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
                 hp.insertTuple(t);
                 list.add(hp);
                 break;
+            } else {
+                Database.getBufferPool().releasePage(tid, pid);
             }
         }
         if (list.isEmpty()) {

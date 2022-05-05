@@ -28,6 +28,7 @@ public class BufferPool {
 
     private Map<PageId, Page> pages;
     private final int numPages;
+    private LockManager lockManager;
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -37,6 +38,7 @@ public class BufferPool {
     public BufferPool(int numPages) {
         this.numPages = numPages;
         this.pages = new HashMap<>();
+        this.lockManager = new LockManager();
     }
     
     public static int getPageSize() {
@@ -70,6 +72,12 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
+        try {
+            this.lockManager.acquire(tid, pid, perm);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         if (this.pages.containsKey(pid)) {
             return this.pages.get(pid);
         } else if (this.pages.size() > this.numPages){
@@ -91,9 +99,8 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      * @param pid the ID of the page to unlock
      */
-    public  void releasePage(TransactionId tid, PageId pid) {
-        // some code goes here
-        // not necessary for lab1|lab2
+    public void releasePage(TransactionId tid, PageId pid) {
+        this.lockManager.release(tid, pid);
     }
 
     /**
@@ -102,15 +109,12 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public void transactionComplete(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
     public boolean holdsLock(TransactionId tid, PageId p) {
-        // some code goes here
-        // not necessary for lab1|lab2
-        return false;
+        return this.lockManager.holdsLock(tid, p);
     }
 
     /**
@@ -122,8 +126,7 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+
     }
 
     /**
