@@ -147,7 +147,9 @@ public class LockManager {
             if (this.locks.get(pid).holdsExclusiveLock(tid)) {
                 this.locks.get(pid).removeExclusiveLock(tid);
             }
-            this.locks.remove(pid);
+            if (this.locks.get(pid).sharedLocks.size() == 0 && !this.locks.get(pid).exclusivelyLocked()) {
+                this.locks.remove(pid);
+            } 
         }
     }
 
