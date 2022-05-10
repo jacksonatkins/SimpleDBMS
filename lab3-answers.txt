@@ -1,0 +1,40 @@
+1. This lab was all about implementing concurrency control in SimpleDB. This was done by implementing pessimistic
+concurrency control, using a LockManager class to allow transactions to acquire and release locks using page-level
+granularity. Within this LockManager class, deadlocks are detected using a dependency graph in order to abort
+transactions rather than waiting an infinite amount of time for them to complete. The manager also allows for outside
+classes to determine if a lock is held by a transaction, as well as the ability to immediately release all locks held
+by a specific transaction. All of this is built on an inner class which tracks the shared and exclusive locks on a
+given page. This inner class (LocksOnPage) allows specific lock types to be acquired and released, and provides the
+ability to check if a specific transaction holds a shared or exclusive lock on a given page. This class is used mainly
+by BufferPool, which acquires locks in getPage(), and releases locks mainly in TransactionComplete (also seen in the
+releasePage method). This implementation means that we do not have to acquire locks anywhere else in the database, as
+everything is sent through BufferPool. With concurrency control, we also need the ability to implement the completion of
+transactions, as well as the ability to flush and evict pages under the NO STEAL/FORCE policies. Within these methods,
+BufferPool makes sure to never evict dirty pages and always flush dirty pages to disk once a transaction commits. Lastly
+was slight modifications to HeapFile, which immediately releases a page in insertTuple if there are no available slots.
+This is done to save time and prevent an excessive amount of deadlocks from occurring, as the method no longer needs to
+maintain a lock on the page. With all of these implementations, SimpleDB is able to run transactions concurrently while
+properly aborting transactions, acquiring locks, and detecting deadlocks within the database. This allows multiple
+threads to run at once without causing errors within the system.
+
+2. A unit test that would be helpful is a more thorough TransactionTest, specifically a test that deals with the
+insertion and deletion of tuples (as seen in the system test). I think that this test would have given me a better
+idea of why specific bugs were showing up when tuples are inserted/deleted, as it was very challenging to debug the
+complex concurrency issues seen in the TransactionTest system test.
+
+3. The first important design decision I made was the granularity of the locks I used. I chose to use page-level
+locking, as it allowed me to deal with groups of tuples rather than worrying about specific tuples. Furthermore, this
+made the implementation much easier, as I was able to simply acquire locks in the getPage() method in BufferPool rather
+than acquiring many tuple level locks in various places. This also made implementing deadlock detection quite simple
+(detailed below). The next design decision was dealing with synchronization. At first, I tried to use the wait() and
+notify() methods as detailed in the spec, but this created infinite loops in my code. I decided to use an infinite loop
+in acquire() (seen in LockManager.java), allowing a transaction to wait until a lock is freed, before breaking out of
+the loop. This allows locks to easily acquire and wait for locks without the fear of infinite loops. Lastly was
+implementing deadlock detection. I chose to use a dependency graph using a Map data structure, which tracks what
+transactions depend on other transactions to eventually acquire locks. I chose this route because it felt more concrete
+than simply waiting to abort a transaction, as this method allows the deadlocks to be instantly detected at the top
+of the infinite loop (described above). Furthermore, I was able to easily setup this data structure by adding and
+checking dependencies throughout my acquire() method. Overall, I feel that these design decisions allowed the easiest
+implementation of concurrency control in SimpleDB while still maintaining efficiency.
+
+4. There were no changes made to the API.

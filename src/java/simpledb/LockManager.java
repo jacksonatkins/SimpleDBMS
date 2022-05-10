@@ -24,6 +24,12 @@ public class LockManager {
             this.sharedLocks.remove(tid);
         }
 
+        public void removeExclusiveLock(TransactionId tid) {
+            if (tid.equals(exclusiveLock)) {
+                exclusiveLock = null;
+            }
+        }
+
         public void setExclusiveLock(TransactionId tid) {
             this.exclusiveLock = tid;
         }
@@ -50,20 +56,60 @@ public class LockManager {
     }
 
     private Map<PageId, LocksOnPage> locks;
+    private Map<TransactionId, HashSet<TransactionId>> dependencies;
 
     public LockManager() {
         this.locks = new HashMap<>();
+        this.dependencies = new HashMap<>();
+    }
+
+    // Checks if there are any deadlocks relating to transaction tid
+    public synchronized boolean deadlocked(TransactionId tid) {
+        if (this.dependencies.containsKey(tid)) {
+            Set<TransactionId> deps = this.dependencies.get(tid);
+            for (TransactionId p : deps) {
+                if (this.dependencies.containsKey(p)) {
+                    if (this.dependencies.get(p).contains(tid)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     // Acquires a lock for Transaction tid on page with PageId pid.
     // Uses perms to determine if the lock is exclusive or shared.
-    public void acquire(TransactionId tid, PageId pid, Permissions perms) throws InterruptedException {
+    public void acquire(TransactionId tid, PageId pid, Permissions perms) throws TransactionAbortedException {
         if (this.locks.containsKey(pid) && this.locks.get(pid).holdsExclusiveLock(tid)) {
             return;
         }
 
+        synchronized (this) {
+            if (isLocked(pid)) {
+                if (this.locks.get(pid).exclusivelyLocked() && !this.locks.get(pid).exclusiveLock.equals(tid)) {
+                    if (!this.dependencies.containsKey(this.locks.get(pid).exclusiveLock)) {
+                        this.dependencies.put(this.locks.get(pid).exclusiveLock, new HashSet<>());
+                    }
+                    this.dependencies.get(this.locks.get(pid).exclusiveLock).add(tid);
+                } else if (this.locks.get(pid).sharedLocks.size() > 0 && perms.equals(Permissions.READ_WRITE)) {
+                    for (TransactionId t : this.locks.get(pid).sharedLocks) {
+                        if (!t.equals(tid)) {
+                            if (!this.dependencies.containsKey(t)) {
+                                this.dependencies.put(t, new HashSet<>());
+                            }
+                            this.dependencies.get(t).add(tid);
+                        }
+                    }
+                }
+            }
+        }
+
         while (true) {
             synchronized (this) {
+                if (deadlocked(tid)) {
+                    throw new TransactionAbortedException();
+                }
                 if (!this.locks.containsKey(pid)) {
                     this.locks.put(pid, new LocksOnPage());
                     if (perms.equals(Permissions.READ_ONLY)) {
@@ -72,13 +118,20 @@ public class LockManager {
                         this.locks.get(pid).setExclusiveLock(tid);
                     }
                     return;
-                } else if (!this.locks.get(pid).exclusivelyLocked() && perms.equals(Permissions.READ_ONLY)) {
-                    this.locks.get(pid).addSharedLock(tid);
-                    return;
-                } else if (this.locks.get(pid).holdsSharedLock(tid) && this.locks.get(pid).sharedLocks.size() == 1) {
-                    this.locks.get(pid).removeSharedLock(tid);
-                    this.locks.get(pid).setExclusiveLock(tid);
-                    return;
+                } else if (!this.locks.get(pid).exclusivelyLocked()) {
+                    if (perms.equals(Permissions.READ_ONLY)) {
+                        this.locks.get(pid).addSharedLock(tid);
+                        return;
+                    }
+                    if (this.locks.get(pid).holdsSharedLock(tid) && this.locks.get(pid).sharedLocks.size() == 1) {
+                        this.locks.get(pid).removeSharedLock(tid);
+                        this.locks.get(pid).setExclusiveLock(tid);
+                        return;
+                    }
+                } else {
+                    if (this.locks.get(pid).exclusivelyLocked() && this.locks.get(pid).exclusiveLock.equals(tid)) {
+                        return;
+                    }
                 }
             }
         }
@@ -92,7 +145,7 @@ public class LockManager {
                 this.locks.get(pid).removeSharedLock(tid);
             }
             if (this.locks.get(pid).holdsExclusiveLock(tid)) {
-                this.locks.get(pid).setExclusiveLock(null);
+                this.locks.get(pid).removeExclusiveLock(tid);
             }
             this.locks.remove(pid);
         }
@@ -108,21 +161,25 @@ public class LockManager {
         return this.locks.get(pid).holdsExclusiveLock(tid) || this.locks.get(pid).holdsSharedLock(tid);
     }
 
-    public void removeAllHeld(TransactionId tid) {
-        for (LocksOnPage lop : this.locks.values()) {
-            if (lop.holdsSharedLock(tid)) {
-                lop.removeSharedLock(tid);
-            }
-            if (lop.holdsExclusiveLock(tid)) {
-                lop.setExclusiveLock(null);
+    // Removes all held locks held by tid
+    public synchronized void removeAllHeld(TransactionId tid) {
+        List<PageId> toRelease = new ArrayList<>();
+        for (PageId pid : this.locks.keySet()) {
+            if (this.locks.get(pid).holdsExclusiveLock(tid) || this.locks.get(pid).holdsSharedLock(tid)) {
+                toRelease.add(pid);
             }
         }
+        for (PageId pid : toRelease) {
+            this.release(tid, pid);
+        }
+        this.dependencies.remove(tid);
     }
 
     // Used to reset the lock manager.
     // Done by removing all locks stored in the manager.
     public void reset() {
         this.locks.clear();
+        this.dependencies.clear();
     }
 
 }

@@ -72,17 +72,13 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-        try {
-            this.lockManager.acquire(tid, pid, perm);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        if (this.pages.size() >= this.numPages) {
+            evictPage();
         }
+        this.lockManager.acquire(tid, pid, perm);
 
         if (this.pages.containsKey(pid)) {
             return this.pages.get(pid);
-        } else if (this.pages.size() > this.numPages){
-            evictPage();
-            return getPage(tid, pid, perm);
         } else {
             Page p = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
             this.pages.put(pid, p);
@@ -109,7 +105,7 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public void transactionComplete(TransactionId tid) throws IOException {
-
+        transactionComplete(tid, true);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
@@ -126,7 +122,21 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
-
+        if (commit) {
+            this.flushPages(tid);
+            this.lockManager.removeAllHeld(tid);
+        } else {
+            List<PageId> toDiscard = new ArrayList<>();
+            for (PageId p : this.pages.keySet()) {
+                if (tid.equals(this.pages.get(p).isDirty())) {
+                    toDiscard.add(p);
+                }
+            }
+            for (PageId pid : toDiscard) {
+                this.discardPage(pid);
+            }
+        }
+        this.lockManager.removeAllHeld(tid);
     }
 
     /**
@@ -201,8 +211,7 @@ public class BufferPool {
         are removed from the cache so they can be reused safely
     */
     public synchronized void discardPage(PageId pid) {
-        // some code goes here
-        // not necessary for lab1
+        this.pages.remove(pid);
     }
 
     /**
@@ -212,8 +221,8 @@ public class BufferPool {
     private synchronized void flushPage(PageId pid) throws IOException {
         Page p = this.pages.get(pid);
         if (p.isDirty() != null) {
-            HeapFile hp = (HeapFile) Database.getCatalog().getDatabaseFile(pid.getTableId());
-            hp.writePage(p);
+            HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(pid.getTableId());
+            hf.writePage(p);
             p.markDirty(false, null);
         }
     }
@@ -221,8 +230,11 @@ public class BufferPool {
     /** Write all pages of the specified transaction to disk.
      */
     public synchronized void flushPages(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        for (PageId p : this.pages.keySet()) {
+            if (tid.equals(this.pages.get(p).isDirty())) {
+                this.flushPage(p);
+            }
+        }
     }
 
     /**
@@ -232,7 +244,16 @@ public class BufferPool {
     private synchronized void evictPage() throws DbException {
         List<PageId> list = new ArrayList<>(this.pages.keySet());
         Collections.shuffle(list);
-        PageId deletion = list.get(0);
+        PageId deletion = null;
+        for (PageId pid : list) {
+            if (pages.get(pid).isDirty() == null) {
+                deletion = pid;
+                break;
+            }
+        }
+        if (deletion == null) {
+            throw new DbException("Couldn't find page to evict");
+        }
         try {
             flushPage(deletion);
         } catch (IOException e) {
