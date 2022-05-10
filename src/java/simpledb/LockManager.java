@@ -149,7 +149,7 @@ public class LockManager {
             }
             if (this.locks.get(pid).sharedLocks.size() == 0 && !this.locks.get(pid).exclusivelyLocked()) {
                 this.locks.remove(pid);
-            } 
+            }
         }
     }
 
