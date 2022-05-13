@@ -65,13 +65,24 @@ public class LockManager {
 
     // Checks if there are any deadlocks relating to transaction tid
     public synchronized boolean deadlocked(TransactionId tid) {
+        if (this.dependencies.keySet().size() <= 1) {
+            return false;
+        }
         if (this.dependencies.containsKey(tid)) {
-            Set<TransactionId> deps = this.dependencies.get(tid);
-            for (TransactionId p : deps) {
-                if (this.dependencies.containsKey(p)) {
-                    if (this.dependencies.get(p).contains(tid)) {
-                        return true;
+            Map<TransactionId, Integer> visited = new HashMap<>();
+            LinkedList<TransactionId> queue = new LinkedList<>();
+            visited.put(tid, 1);
+            queue.add(tid);
+
+            while (queue.size() != 0) {
+                TransactionId s = queue.poll();
+                if (!visited.containsKey(s)) {
+                    visited.put(s, 1);
+                    if (this.dependencies.containsKey(s)) {
+                        queue.addAll(this.dependencies.get(s));
                     }
+                } else {
+                    return true;
                 }
             }
         }
@@ -147,6 +158,7 @@ public class LockManager {
             if (this.locks.get(pid).holdsExclusiveLock(tid)) {
                 this.locks.get(pid).removeExclusiveLock(tid);
             }
+            // Maybe we don't need this check?
             if (this.locks.get(pid).sharedLocks.size() == 0 && !this.locks.get(pid).exclusivelyLocked()) {
                 this.locks.remove(pid);
             }
