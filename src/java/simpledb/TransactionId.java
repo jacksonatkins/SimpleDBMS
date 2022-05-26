@@ -17,6 +17,11 @@ public class TransactionId implements Serializable {
         myid = counter.getAndIncrement();
     }
 
+    // Extra constructor that allows a long to become a TransactionId
+    public TransactionId(long tid) {
+    	myid = tid;
+	}
+
     public long getId() {
         return myid;
     }
