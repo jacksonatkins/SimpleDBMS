@@ -1,0 +1,36 @@
+1. This lab was about implementing recovery in SimpleDB using an undo-redo log. This was done using the LogFile class to
+keep track of what changed in the database, as well as containing functions to allow for both undo and redo logging.
+Furthermore, there were changed made to BufferPool in order to properly implement the STEAL and NO FORCE policies, as
+opposed to the NO STEAL/FORCE implementation seen in Lab 3. Within BufferPool, I changed evictPage() to allow any page
+to be evicted from the BufferPool, part of the STEAL policy. This was quite easy, as I just took away any checks to
+verify that dirty pages were not being evicted. Within both flushPage() and transactionComplete() I made sure to force
+the log file to disk when it was required (i.e. a transaction was running in flushPage() or a transaction commits in
+transactionComplete()), as well as setting the before images of any affected pages. This proved to be one of the most
+challenging pieces of the lab, as I missed a page.setBeforeImage() within my flushPage() function, causing me a lot of
+grief later on in the coding process. Within LogFile, I faced a lot of challenges. Implementing these functions were
+incredibly difficult, especially with an annoying and tedious debugging process. I ended up deciding not to use CLR
+records within rollback(), as I felt I did not need them to successfully implement the method. The rollback() method
+works by finding all UPDATE records belonging to the corresponding TransactionId and adds the bad pages to a stack. At
+the end of the method, I pop these pages of the stack and set them back to their original states, allowing me to
+essentially traverse the log backwards without dealing with complicated pointers. While implementing this method, I also
+decided to implement print() to allow me to see if my functions were behaving properly, and it proved to be a huge help
+throughout Lab 4. The redo portion of the log is seen in recover(), which updates pages as it searches through the log
+as necessary. I also decided to use the tidToFirstLogRecord map as my loser transactions set within this method, as it
+allowed me to use the same data within rollback(). While I faced a lot of challenges while working on this method, many
+of them stemmed from the above problems described in BufferPool. I use the rollback() method for both ABORT records, as
+well as within the undo process of recovery. Overall, this lab was incredibly fun, and was a nice view at another
+portion of database systems.
+
+2. I made one change outside of LogFile.java (as well as BufferPool). I added a new constructor to TransactionId that
+allowed me to pass in a long and set it as the ID for the TransactionId. I did this so that way I could call rollback()
+in my recover() function in order to complete the undo portion of the recovery process. Without this, I would have had
+to create an entirely new method (that would practically be a copy of rollback()) in order to complete this process.
+
+3. I think an important unit test would be one that more thoroughly checks our implementations of transactionComplete()
+and flushPage(). Most of the tests were passing at a point where my implementation of these methods was completely
+incorrect. As such, I would have been able to catch this large error much earlier in my debugging process, rather than
+spending a lot of time checking other functions/classes first.
+
+4. One point of feedback I have is that the tests in LogTest didn't actually feel like they tested the correct things. I
+had big implementation errors and still passed a majority of these tests, turning the debugging process into a multi-hour
+experience.

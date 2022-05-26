@@ -466,7 +466,34 @@ public class LogFile {
         synchronized (Database.getBufferPool()) {
             synchronized(this) {
                 preAppend();
-                // some code goes here
+                if (!this.tidToFirstLogRecord.containsKey((tid.getId()))) { // Should never happen, but just in case
+                    throw new NoSuchElementException();
+                }
+                long first = this.tidToFirstLogRecord.get(tid.getId());
+                raf.seek(first);
+                Stack<Page> undo = new Stack<>();
+                while (raf.getFilePointer() < raf.length()) {
+                    int recordType = raf.readInt();
+                    long transId = raf.readLong();
+                    if (recordType == CHECKPOINT_RECORD) {
+                        int size = raf.readInt();
+                        raf.skipBytes(2 * size * LONG_SIZE);
+                    } else if (recordType == UPDATE_RECORD) {
+                        Page before = readPageData(raf);
+                        readPageData(raf);
+                        if (tid.getId() == transId) {
+                            undo.push(before);
+                        }
+                    }
+                    raf.readLong();
+                }
+                // Actually undoing everything
+                while (!undo.isEmpty()) {
+                    Page beforeImage = undo.pop();
+                    HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(beforeImage.getId().getTableId());
+                    Database.getBufferPool().discardPage(beforeImage.getId());
+                    hf.writePage(beforeImage);
+                }
             }
         }
     }
@@ -493,14 +520,112 @@ public class LogFile {
         synchronized (Database.getBufferPool()) {
             synchronized (this) {
                 recoveryUndecided = false;
-                // some code goes here
+                raf.seek(0); // Go to start of Log
+
+                long lastCP = raf.readLong();
+                if (lastCP != NO_CHECKPOINT_ID) {
+                    raf.seek(lastCP); // Go to last checkpoint
+                    assert raf.readInt() == CHECKPOINT_RECORD; // Make sure that this is actually a checkpoint
+                    raf.skipBytes(LONG_SIZE);
+                    int numTxn = raf.readInt();
+                    for (int i = 0; i < numTxn; i++) {
+                        long tid = raf.readLong();
+                        tidToFirstLogRecord.put(tid, raf.readLong());
+                    }
+                    raf.seek(lastCP);
+                }
+
+                // REDO
+                while (raf.getFilePointer() < raf.length()) {
+                    long offset = raf.getFilePointer();
+                    int recordType = raf.readInt();
+                    long tid = raf.readLong();
+
+                    switch (recordType) {
+                        case ABORT_RECORD:
+                            long temp = raf.getFilePointer();
+                            rollback(new TransactionId(tid));
+                            tidToFirstLogRecord.remove(tid);
+                            raf.seek(temp);
+                            break;
+                        case COMMIT_RECORD:
+                            tidToFirstLogRecord.remove(tid);
+                            break;
+                        case UPDATE_RECORD:
+                            readPageData(raf); // Skip over beforeImage
+                            Page afterImage = readPageData(raf);
+                            PageId pid = afterImage.getId();
+                            HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(pid.getTableId());
+                            Database.getBufferPool().discardPage(pid);
+                            hf.writePage(afterImage);
+                            break;
+                        case BEGIN_RECORD:
+                            tidToFirstLogRecord.put(tid, offset);
+                            break;
+                        case CHECKPOINT_RECORD:
+                            int numTxn = raf.readInt(); // Allows us to easily bypass checkpoints
+                            for (int i = 0; i < numTxn; i++) {
+                                raf.readLong();
+                                raf.readLong();
+                            }
+                    }
+                    raf.readLong(); // Skips over long file pointer at the end of every log
+                }
+
+                // UNDO
+                for (long t : this.tidToFirstLogRecord.keySet()) {
+                    rollback(new TransactionId(t));
+                }
             }
          }
     }
 
-    /** Print out a human readable represenation of the log */
+    /** Print out a human readable representation of the log */
     public void print() throws IOException {
-        // some code goes here
+        raf.seek(0);
+        raf.skipBytes(LONG_SIZE);
+        System.out.println("LOG FILE:");
+        while (raf.getFilePointer() < raf.length()) {
+            int recordType = raf.readInt();
+            long tid = raf.readLong();
+            long offset;
+            switch (recordType) {
+                case ABORT_RECORD:
+                    offset = raf.readLong();
+                    System.out.println("< ABORT " + tid + ", OFFSET: " + offset + " >");
+                    break;
+                case COMMIT_RECORD:
+                    offset = raf.readLong();
+                    System.out.println("< COMMIT " + tid + ", OFFSET: " + offset + " >");
+                    break;
+                case UPDATE_RECORD:
+                    Page a = readPageData(raf);
+                    Page b = readPageData(raf);
+                    offset = raf.readLong();
+                    System.out.println("< UPDATE " + tid + " " + a.getId().getTableId() + ", " + a.getId().getPageNumber() + ", OFFSET: " + offset + " >");
+                    Iterator<Tuple> itr = ((HeapPage) b).iterator();
+                    while (itr.hasNext()) {
+                        System.out.println(itr.next());
+                    }
+                    break;
+                case BEGIN_RECORD:
+                    offset = raf.readLong();
+                    System.out.println("< START " + tid + ", OFFSET: " + offset + " >");
+                    break;
+                default:
+                    break;
+                case CHECKPOINT_RECORD:
+                    int numTxn = raf.readInt();
+                    System.out.print("< START CKPT ");
+                    for (int i = 0; i < numTxn; i++) {
+                        System.out.print(raf.readLong());
+                        raf.readLong();
+                    }
+                    System.out.print(" >");
+                    System.out.println();
+                    break;
+            }
+        }
     }
 
     public  synchronized void force() throws IOException {

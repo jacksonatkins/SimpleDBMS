@@ -123,8 +123,14 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
         if (commit) {
-            this.flushPages(tid);
-            this.lockManager.removeAllHeld(tid);
+            for (PageId p : this.pages.keySet()) {
+                Page page = this.pages.get(p);
+                if (tid.equals(page.isDirty())) {
+                    Database.getLogFile().logWrite(tid, page.getBeforeImage(), page);
+                    Database.getLogFile().force();
+                    page.setBeforeImage();
+                }
+            }
         } else {
             List<PageId> toDiscard = new ArrayList<>();
             for (PageId p : this.pages.keySet()) {
@@ -220,7 +226,13 @@ public class BufferPool {
      */
     private synchronized void flushPage(PageId pid) throws IOException {
         Page p = this.pages.get(pid);
-        if (p.isDirty() != null) {
+        TransactionId dirtier = p.isDirty();
+        if (dirtier != null) {
+            if (this.lockManager.holdsAny(dirtier)) { // Is the transaction still running?
+                Database.getLogFile().logWrite(dirtier, p.getBeforeImage(), p);
+                Database.getLogFile().force();
+                p.setBeforeImage();
+            }
             HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(pid.getTableId());
             hf.writePage(p);
             p.markDirty(false, null);
@@ -244,16 +256,7 @@ public class BufferPool {
     private synchronized void evictPage() throws DbException {
         List<PageId> list = new ArrayList<>(this.pages.keySet());
         Collections.shuffle(list);
-        PageId deletion = null;
-        for (PageId pid : list) {
-            if (pages.get(pid).isDirty() == null) {
-                deletion = pid;
-                break;
-            }
-        }
-        if (deletion == null) {
-            throw new DbException("Couldn't find page to evict");
-        }
+        PageId deletion = list.get(0); // No more issues with dirty pages
         try {
             flushPage(deletion);
         } catch (IOException e) {

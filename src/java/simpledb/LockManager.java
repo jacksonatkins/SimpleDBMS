@@ -189,6 +189,16 @@ public class LockManager {
         this.dependencies.remove(tid);
     }
 
+    // Method that checks if a transaction holds any locks -- Used in BufferPool's flushPage()
+    public synchronized boolean holdsAny(TransactionId tid) {
+        for (PageId pid : this.locks.keySet()) {
+            if (this.locks.get(pid).holdsExclusiveLock(tid) || this.locks.get(pid).holdsSharedLock(tid)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Used to reset the lock manager.
     // Done by removing all locks stored in the manager.
     public void reset() {
