@@ -314,7 +314,7 @@ In your writeup, show the query plan that your optimizer selected. Explain why y
 
 In this section, we describe several possible extensions to your query optimizer. These are less well defined than the previous exercises but give you a chance to show off your mastery of query optimization!
 
-**For Spring quarter 2021, these extensions (section 2.5) are optional. No extensions are required to get full points on the lab.**
+**For Spring quarter 2022, these extensions (section 2.5) are optional. No extensions are required to get full points on the lab.**
 
 **Make sure to develop unit-tests for verifying the correctness of your extension.** Please use JUnit when appropriate but feel free to also go beyond JUnit and use scripts if that helps you test some interesting, additional configurations. For the tests that you add, please add them to a separate directory called **test-extensions**.
 
