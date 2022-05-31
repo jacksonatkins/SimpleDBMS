@@ -1,0 +1,12 @@
+Feedback for: jratkins
+--------------------------------------------------------------
+Total Score (%): 100
+Unit Test Score (out of 15): 15
+System Test Score (out of 6): 6
+Code Score (out of 10): 10
+Writeup Score (out of 10): 10
+--------------------------------------------------------------
+Code Feedback: Great job!
+
+Writeup Feedback: Great job!
+I believe the spec meant for you to use wait() and notifyAll() in an infinite loop like you did, which only breaks out if the lock is acquired.
