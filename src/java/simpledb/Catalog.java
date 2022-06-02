@@ -72,12 +72,7 @@ public class Catalog {
     public void addTable(DbFile file, String name, String pkeyField) {
         assert name != null;
         this.idToTable.put(file.getId(), new Table(file, name, pkeyField));
-        if (this.nameToID.containsKey(name)) {
-            int old = this.nameToID.put(name, file.getId());
-            this.idToTable.remove(old);
-        } else {
-            this.nameToID.put(name, file.getId());
-        }
+        this.nameToID.put(name, file.getId());
     }
 
     public void addTable(DbFile file, String name) {

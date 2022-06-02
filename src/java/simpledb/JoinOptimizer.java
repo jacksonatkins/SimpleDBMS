@@ -111,7 +111,7 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            return -1.0;
+            return cost1 + card1 * cost2 + card1 * card2;
         }
     }
 
@@ -155,9 +155,17 @@ public class JoinOptimizer {
             String field2PureName, int card1, int card2, boolean t1pkey,
             boolean t2pkey, Map<String, TableStats> stats,
             Map<String, Integer> tableAliasToId) {
-        int card = 1;
-        // some code goes here
-        return card <= 0 ? 1 : card;
+        if (joinOp.equals(Predicate.Op.EQUALS)) {
+            if (!t1pkey && !t2pkey) {
+                return Math.max(card1, card2);
+            } else if (!t1pkey) {
+                return card2;
+            } else {
+                return card1;
+            }
+        } else {
+            return (int) (card1 * card2 * 0.3);
+        }
     }
 
     /**
@@ -217,11 +225,27 @@ public class JoinOptimizer {
             HashMap<String, TableStats> stats,
             HashMap<String, Double> filterSelectivities, boolean explain)
             throws ParsingException {
-        //Not necessary for labs 1--3
 
-        // some code goes here
-        //Replace the following
-        return joins;
+        PlanCache pc = new PlanCache();
+        for (int i = 1; i <= this.joins.size(); i++) {
+            for (Set<LogicalJoinNode> s : enumerateSubsets(this.joins, i)) {
+                CostCard bestPlan = null;
+                for (LogicalJoinNode node : s) {
+                    double cost = (bestPlan == null) ? Double.MAX_VALUE : bestPlan.cost;
+                    CostCard subplan = computeCostAndCardOfSubplan(stats, filterSelectivities, node, s, cost, pc);
+                    if (subplan != null && (bestPlan == null  || bestPlan.cost > subplan.cost)) {
+                        bestPlan = subplan;
+                    }
+                }
+                if (bestPlan != null) {
+                    pc.addPlan(s, bestPlan.cost, bestPlan.card, bestPlan.plan);
+                }
+            }
+        }
+        if (explain) {
+            printJoins(pc.getOrder(new HashSet<>(this.joins)), pc, stats, filterSelectivities);
+        }
+        return pc.getOrder(new HashSet<>(this.joins));
     }
 
     // ===================== Private Methods =================================

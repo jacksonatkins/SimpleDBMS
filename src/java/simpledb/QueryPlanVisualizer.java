@@ -7,11 +7,11 @@ import simpledb.TupleDesc.TDItem;
 
 public class QueryPlanVisualizer {
 
-    static final String JOIN = "⨝";
-    static final String HASH_JOIN = "⨝(hash)";
+    static final String JOIN = "J";
+    static final String HASH_JOIN = "J(H)";
     static final String SELECT = "σ";
     static final String PROJECT = "π";
-    static final String RENAME = "ρ";
+    static final String RENAME = "P";
     static final String SCAN = "scan";
     static final String ORDERBY = "o";
     static final String GROUPBY = "g";
